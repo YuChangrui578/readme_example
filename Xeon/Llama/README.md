@@ -2,19 +2,18 @@
 
 ## 1. Model Introduction
 
-Llama 3.2 is a collection of lightweight, highly capable models from Meta, designed to bring advanced intelligence to edge devices and smaller scale deployments. This family includes optimized variants such as quantized W8A8, FP8, and AWQ versions to maximize throughput on CPU-based inference engines.
+Llama 3.2 is a collection of lightweight models released by Meta, designed to bring advanced reasoning and instruction-following capabilities to edge devices and smaller-scale deployments. This family includes optimized variants such as quantized W8A8, FP8, and AWQ versions to maximize performance on CPU-based architectures.
 
-Key features of the Llama 3.2 family:
+Key features include:
+- **Optimized for Efficiency**: Small-scale models (e.g., 3B) tailored for low-latency applications.
+- **Quantization Support**: Multiple quantization formats (W8A8, FP8, AWQ) available for varying hardware constraints.
+- **Enhanced Reasoning**: Improved instruction following and general intelligence compared to previous lightweight iterations.
 
-- **Efficiency**: Optimized for low-latency inference on diverse hardware.
-- **Quantization Support**: Wide range of quantization formats including W8A8, FP8, and AWQ to balance precision and performance.
-- **Versatility**: Suitable for a variety of text-based tasks and instruction following.
-
-For further details, please refer to the official [Llama 3.2 release information](https://ai.meta.com/blog/meta-llama-3-2/).
+For further details, please refer to the [Llama 3.2 model card on HuggingFace](https://huggingface.co/meta-llama).
 
 ## 2. Model Acquisition
 
-You can access the models on Hugging Face.
+You can access the models on huggingface.
 
 | Data Type | Model ID |
 |:---:|:---:|
@@ -32,15 +31,11 @@ Then set `--model-path <LOCAL_MODEL_PATH>` instead of `--model-path <MODEL_ID>` 
 
 ## 3. SGLang Installation
 
-For CPU-optimized inference, please refer to the [official SGLang installation guide](https://docs.sglang.io/platforms/cpu_server.html#installation).
+For optimized CPU deployment, please refer to the [official SGLang installation guide](https://docs.sglang.io/platforms/cpu_server.html#installation).
 
-For AWQ-based models, ensure you are using the optimized branch:
+For specific optimizations like AWQ, please refer to the [CPU-optimized branch of SGLang](https://github.com/jianan-gu/sglang/tree/cpu_optimized).
 
-```bash
-git clone -b cpu_optimized https://github.com/jianan-gu/sglang.git
-```
-
-Or pull the specialized Docker image:
+You can pull the docker image if you have access to `gar-registry.caas.intel.com`:
 
 ```bash
 docker pull gar-registry.caas.intel.com/pytorch/pytorch-ipex-spr:intel-sglang-cpu-optimized
@@ -50,13 +45,13 @@ docker pull gar-registry.caas.intel.com/pytorch/pytorch-ipex-spr:intel-sglang-cp
 
 This section provides deployment configurations optimized for the hardware platforms and use cases.
 
-**Interactive Command Generator**: Use the configuration selector below to generate a launch command for the Llama 3.2 collection.
+**Interactive Command Generator**: Use the configuration selector below to generate a launch command for the Llama 3.2 collection of models.
 
 import Llama32ConfigGenerator from '@site/src/components/autoregressive/Llama32ConfigGenerator';
 
 <Llama32ConfigGenerator />
 
-Please read the `Notes` part in the serving engine launching section in [the official SGLang CPU server document](https://docs.sglang.io/platforms/cpu_server.html#launch-of-the-serving-engine) to understand how to configure arguments like TP (tensor parallel) and NUMA binding.
+Please read the `Notes` part in the serving engine launching section in [the official SGLang CPU server document](https://docs.sglang.io/platforms/cpu_server.html#launch-of-the-serving-engine) to better understand how to configure the arguments, especially for TP (tensor parallel) and NUMA binding settings.
 
 ## 5. Model Invocation
 
@@ -73,8 +68,8 @@ client = OpenAI(
 resp = client.chat.completions.create(
     model="Llama-3.2-3B-Instruct-FP8",
     messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Explain the benefits of quantization in LLMs."},
+        {"role": "system", "content": "You are a helpful coding assistant."},
+        {"role": "user", "content": "Write a Python function that retries a request with exponential backoff."},
     ],
     temperature=0.2,
     max_tokens=512,
@@ -85,7 +80,8 @@ print(resp.choices[0].message.content)
 
 ## 6. Benchmarking
 
-To benchmark the performance, use the `sglang.bench_serving` command:
+Open another terminal and run the `sglang.bench_serving` command.
+An example command would be like:
 
 ```bash
 python -m sglang.bench_serving                                 \
@@ -99,6 +95,6 @@ python -m sglang.bench_serving                                 \
     --random-range-ratio 1.0
 ```
 
-Adjust the settings according to your specific hardware and testing requirements. Detailed argument descriptions are available in [this doc](../../base/benchmarks/lm_benchmark.md).
+Detailed descriptions for the arguments of `bench_serving` are available in [this doc](../../base/benchmarks/lm_benchmark.md).
 
 ---
