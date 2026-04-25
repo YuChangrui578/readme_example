@@ -6,7 +6,7 @@ import ConfigGenerator from '../../base/ConfigGenerator';
  */
 const Llama32ConfigGenerator = () => {
   const config = {
-    modelFamily: 'llama-3.2',
+    modelFamily: 'meta-llama',
 
     options: {
       hardware: {
@@ -14,6 +14,13 @@ const Llama32ConfigGenerator = () => {
         title: 'Hardware Platform',
         items: [
           { id: 'cpu', label: 'Xeon CPU', default: true }
+        ]
+      },
+      modelsize: {
+        name: 'modelsize',
+        title: 'Model Size',
+        items: [
+          { id: '3b', label: '3B', default: true }
         ]
       },
       quantization: {
@@ -28,19 +35,18 @@ const Llama32ConfigGenerator = () => {
     },
 
     generateCommand: function(values) {
-      const { hardware, quantization } = values;
+      const { hardware, modelsize, quantization } = values;
 
-      // Determine model path based on current model_id_list
+      // Determine model path based on current model_list
       let modelPath;
       if (quantization === 'w8a8') {
-        modelPath = 'RedHatAI/Llama-3.2-3B-quantized.w8a8';
+        modelPath = `Llama-3.2-3B-quantized.w8a8`;
       } else if (quantization === 'fp8') {
-        modelPath = 'RedHatAI/Llama-3.2-3B-Instruct-FP8';
+        modelPath = `Llama-3.2-3B-Instruct-FP8`;
       } else if (quantization === 'awq') {
-        modelPath = 'AMead10/Llama-3.2-3B-Instruct-AWQ';
+        modelPath = `Llama-3.2-3B-Instruct-AWQ`;
       } else {
-        // Default fallback if needed, though current list covers the provided options
-        modelPath = 'RedHatAI/Llama-3.2-3B-quantized.w8a8';
+        modelPath = `Llama-3.2-3B`;
       }
 
       // Build command args
@@ -51,13 +57,12 @@ const Llama32ConfigGenerator = () => {
       args.push(`--device cpu`);
       
       if (quantization === 'w8a8') {
-        args.push(`--quantization w8a8_int8`);
+        args.push(`--quantization w8a8`);
       }
-      // Note: FP8 and AWQ support in SGLang CPU depends on specific backend implementations
       
       args.push(`--enable-torch-compile`);
       args.push(`--host 0.0.0.0`);
-      args.push(`--tp 1`); // Adjusted TP for 3B model as a sane default
+      args.push(`--tp 1`); // Adjust TP as needed for 3B models
 
       let cmd = 'python -m sglang.launch_server \\\n';
       cmd += `  ${args.join(' \\\n  ')}`;
