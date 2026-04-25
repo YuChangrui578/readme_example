@@ -37,7 +37,7 @@ const Llama32ConfigGenerator = () => {
     generateCommand: function(values) {
       const { hardware, modelsize, quantization } = values;
 
-      // Determine model path based on current model_list
+      // Determine model path
       let modelPath;
       if (quantization === 'w8a8') {
         modelPath = `Llama-3.2-3B-quantized.w8a8`;
@@ -62,7 +62,7 @@ const Llama32ConfigGenerator = () => {
       
       args.push(`--enable-torch-compile`);
       args.push(`--host 0.0.0.0`);
-      args.push(`--tp 1`); // Adjust TP as needed for 3B models
+      args.push(`--tp 1`); // Adjusted for 3B model size context
 
       let cmd = 'python -m sglang.launch_server \\\n';
       cmd += `  ${args.join(' \\\n  ')}`;
