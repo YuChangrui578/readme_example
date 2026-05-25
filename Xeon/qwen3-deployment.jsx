@@ -10,7 +10,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 4, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 4, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 4, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: true }
     },
     '30b': {
       baseName: '30B-A3B',
@@ -21,7 +21,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '32b': {
       baseName: '32B',
@@ -32,7 +32,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '14b': {
       baseName: '14B',
@@ -43,7 +43,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '8b': {
       baseName: '8B',
@@ -54,7 +54,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '4b': {
       baseName: '4B',
@@ -65,7 +65,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '1.7b': {
       baseName: '1.7B',
@@ -76,7 +76,7 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     },
     '0.6b': {
       baseName: '0.6B',
@@ -87,9 +87,11 @@ export const Qwen3Deployment = () => {
       mi300x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi325x: { tp: 1, ep: 0, bf16: true, fp8: true },
       mi355x: { tp: 1, ep: 0, bf16: true, fp8: true },
-      xeon: { tp: 6, ep: 0, bf16: true, fp8: true }
+      xeon: { tp: 6, ep: 0, bf16: true, int8: false }
     }
   };
+
+  const isXeonHardware = hardware => hardware === 'xeon';
 
   // Base options
   const baseOptions = {
@@ -125,7 +127,8 @@ export const Qwen3Deployment = () => {
       title: 'Quantization',
       items: [
         { id: 'bf16', label: 'BF16', default: true },
-        { id: 'fp8', label: 'FP8', default: false }
+        { id: 'fp8', label: 'FP8', default: false },
+        { id: 'int8', label: 'INT8', default: false }
       ]
     },
     category: {
@@ -155,19 +158,32 @@ export const Qwen3Deployment = () => {
     }
   };
 
+  const getDefaultValue = items => {
+    const defaultItem = items.find(item => item.default && !item.disabled);
+    const firstEnabledItem = items.find(item => !item.disabled);
+    return defaultItem ? defaultItem.id : firstEnabledItem.id;
+  };
+
   // Get dynamic options based on current values
   const getDisplayOptions = (values) => {
-    const options = {
-      ...baseOptions,
-      hardware: {
-        ...baseOptions.hardware,
-        items: baseOptions.hardware.items.map(item => ({
-          ...item,
-          default: item.id === 'b200'
-        }))
-      }
-    };
+    const options = { ...baseOptions };
     const currentModelConfig = modelConfigs[values.modelsize];
+    const xeonMode = isXeonHardware(values.hardware);
+
+    options.quantization = {
+      ...baseOptions.quantization,
+      items: baseOptions.quantization.items.map(item => {
+        if (!currentModelConfig) {
+          return item;
+        }
+        const hwConfig = currentModelConfig[values.hardware];
+        const supported = hwConfig ? Boolean(hwConfig[item.id]) : false;
+        return {
+          ...item,
+          disabled: !supported
+        };
+      })
+    };
 
     // If model doesn't have thinking variants, disable non-base category options
     if (currentModelConfig && !currentModelConfig.hasThinkingVariants) {
@@ -180,13 +196,12 @@ export const Qwen3Deployment = () => {
       };
     }
 
-    // Xeon uses TP-only deployment and should not retain stale GPU-only combinations
-    if (values.hardware === 'xeon') {
-      options.hardware = {
-        ...options.hardware,
-        items: options.hardware.items.map(item => ({
+    if (xeonMode) {
+      options.reasoningParser = {
+        ...baseOptions.reasoningParser,
+        items: baseOptions.reasoningParser.items.map(item => ({
           ...item,
-          default: item.id === 'xeon'
+          disabled: values.category === 'instruct' ? true : false
         }))
       };
     }
@@ -199,9 +214,19 @@ export const Qwen3Deployment = () => {
     return options;
   };
 
-  const normalizeValues = (draftValues) => {
-    const normalized = { ...draftValues };
+  // Initialize state
+  const getInitialState = () => {
+    const initialState = {};
+    Object.entries(baseOptions).forEach(([key, option]) => {
+      initialState[key] = getDefaultValue(option.items);
+    });
+    return initialState;
+  };
+
+  const normalizeValues = nextValues => {
+    const normalized = { ...nextValues };
     const modelConfig = modelConfigs[normalized.modelsize];
+    const xeonMode = isXeonHardware(normalized.hardware);
 
     if (modelConfig && !modelConfig.hasThinkingVariants && normalized.category !== 'base') {
       normalized.category = 'base';
@@ -211,24 +236,23 @@ export const Qwen3Deployment = () => {
       normalized.reasoningParser = 'disabled';
     }
 
-    if (normalized.hardware === 'xeon') {
-      const xeonConfig = modelConfig?.xeon;
-      if (xeonConfig && !xeonConfig[normalized.quantization]) {
-        normalized.quantization = xeonConfig.bf16 ? 'bf16' : normalized.quantization;
+    if (xeonMode) {
+      if (normalized.quantization === 'fp8') {
+        normalized.quantization = modelConfig?.xeon?.int8 ? 'int8' : 'bf16';
       }
+    } else if (normalized.quantization === 'int8') {
+      normalized.quantization = 'bf16';
     }
 
-    return normalized;
-  };
-
-  // Initialize state
-  const getInitialState = () => {
-    const initialState = {};
-    Object.entries(baseOptions).forEach(([key, option]) => {
-      const defaultItem = option.items.find(item => item.default);
-      initialState[key] = defaultItem ? defaultItem.id : option.items[0].id;
+    const displayOptions = getDisplayOptions(normalized);
+    Object.entries(displayOptions).forEach(([key, option]) => {
+      const currentItem = option.items.find(item => item.id === normalized[key]);
+      if (!currentItem || currentItem.disabled) {
+        normalized[key] = getDefaultValue(option.items);
+      }
     });
-    return normalizeValues(initialState);
+
+    return normalized;
   };
 
   const [values, setValues] = useState(getInitialState);
@@ -255,13 +279,13 @@ export const Qwen3Deployment = () => {
 
   // Generate command
   const generateCommand = () => {
-    const normalizedValues = normalizeValues(values);
-    const { hardware, modelsize, quantization, category, reasoningParser, toolcall } = normalizedValues;
+    const { hardware, modelsize, quantization, category, reasoningParser, toolcall } = values;
 
     // Special error handling
     const commandKey = `${hardware}-${modelsize}-${quantization}-${category}`;
     if (commandKey === 'h100-235b-bf16-instruct' || commandKey === 'h100-235b-bf16-thinking') {
-      return '# Error: Model is too large, cannot fit into 8*H100\n# Please use H200 (141GB) or select FP8 quantization';
+      return '# Error: Model is too large, cannot fit into 8*H100
+# Please use H200 (141GB) or select FP8 quantization';
     }
 
     const config = modelConfigs[modelsize];
@@ -274,48 +298,58 @@ export const Qwen3Deployment = () => {
       return `# Error: Unknown hardware platform: ${hardware}`;
     }
 
-    const quantSuffix = quantization === 'fp8' ? '-FP8' : '';
-
-    let modelPath;
+    let modelName;
     if (config.hasThinkingVariants) {
       if (category === 'base') {
-        modelPath = `Qwen/Qwen3-${config.baseName}${quantSuffix}`;
+        modelName = `Qwen/Qwen3-${config.baseName}`;
       } else {
         const thinkingSuffix = category === 'thinking' ? '-Thinking' : '-Instruct';
         const dateSuffix = '-2507';
-        modelPath = `Qwen/Qwen3-${config.baseName}${thinkingSuffix}${dateSuffix}${quantSuffix}`;
+        modelName = `Qwen/Qwen3-${config.baseName}${thinkingSuffix}${dateSuffix}`;
       }
     } else {
-      modelPath = `Qwen/Qwen3-${config.baseName}${quantSuffix}`;
+      modelName = `Qwen/Qwen3-${config.baseName}`;
+    }
+
+    if (quantization === 'fp8') {
+      modelName += '-FP8';
     }
 
     if (hardware === 'xeon') {
-      let cpuCmd = 'python -m sglang.launch_server \
+      let cpuCmd = 'python -m sglang.launch_server \\
 ';
-      cpuCmd += `  --model ${modelPath} \
-  --tp 6 \
-  --device cpu \
-  --disable-overlap-schedule`;
+      cpuCmd += `  --model ${modelName} \\
+`;
+      cpuCmd += '  --device cpu \\
+';
+      cpuCmd += '  --tp 6 \\
+';
+      cpuCmd += '  --disable-overlap-schedule';
+
+      if (quantization === 'int8') {
+        cpuCmd += ' \\
+  --quantization w8a8_int8';
+      }
 
       if (reasoningParser === 'enabled' && category !== 'instruct') {
-        cpuCmd += ' \
+        cpuCmd += ' \\
   --reasoning-parser qwen3';
       }
 
       if (toolcall === 'enabled') {
-        cpuCmd += ' \
+        cpuCmd += ' \\
   --tool-call-parser qwen25';
       }
 
       return cpuCmd;
     }
 
-    let cmd = 'python -m sglang.launch_server \
+    let cmd = 'python -m sglang.launch_server \\
 ';
-    cmd += `  --model ${modelPath}`;
+    cmd += `  --model ${modelName}`;
 
     if (hwConfig.tp > 1) {
-      cmd += ` \
+      cmd += ` \\
   --tp ${hwConfig.tp}`;
     }
 
@@ -325,17 +359,17 @@ export const Qwen3Deployment = () => {
     }
 
     if (ep > 0) {
-      cmd += ` \
+      cmd += ` \\
   --ep ${ep}`;
     }
 
     if (reasoningParser === 'enabled' && category !== 'instruct') {
-      cmd += ' \
+      cmd += ' \\
   --reasoning-parser qwen3';
     }
 
     if (toolcall === 'enabled') {
-      cmd += ' \
+      cmd += ' \\
   --tool-call-parser qwen25';
     }
 
@@ -350,7 +384,7 @@ export const Qwen3Deployment = () => {
   const cardStyle = { padding: '8px 12px', border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`, borderLeft: `3px solid ${isDark ? '#E85D4D' : '#D45D44'}`, borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '12px', background: isDark ? '#1f2937' : '#fff' };
   const titleStyle = { fontSize: '13px', fontWeight: '600', minWidth: '140px', flexShrink: 0, color: isDark ? '#e5e7eb' : 'inherit' };
   const itemsStyle = { display: 'flex', rowGap: '2px', columnGap: '6px', flexWrap: 'wrap', alignItems: 'center', flex: 1 };
-  const labelBaseStyle = { padding: '4px 10px', border: `1px solid ${isDark ? '#9ca3af' : '#d1d5db'}`, borderRadius: '3px', cursor: 'pointer', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: '500', fontSize: '13px', transition: 'all 0.2s', userSelect: 'none', minWidth: '45px', textAlign: 'center', flex: 1, background: isDark ? '#374151' : '#fff', color: isDark ? '#e5e7eb' : 'inherit' };
+  const labelBaseStyle = { padding: '4px 10px', border: `1px solid ${isDark ? '#9ca3af' : '#d1d5db'}`, borderRadius: '3px', cursor: 'pointer', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: '500', fontSize: '13px', transition: 'all 0.2s', userSelect: 'none', minWidth: '45px', textAlign: 'center', flex: 1, background: isDark ? '#374151' : '#fff', color: isDark ? '#e5eeb' : 'inherit' };
   const checkedStyle = { background: '#D45D44', color: 'white', borderColor: '#D45D44' };
   const disabledStyle = { cursor: 'not-allowed', opacity: 0.5 };
   const subtitleStyle = { display: 'block', fontSize: '9px', marginTop: '1px', lineHeight: '1.1', opacity: 0.7 };
